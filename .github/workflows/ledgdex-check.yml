@@ -1,0 +1,38 @@
+# ledgdex check: made by "ledgdex workflow". Runs on every push, daily, and by hand.
+# A failed run means a ledger was tampered with or rewritten; the report and proofs are attached to the run.
+name: ledgdex check
+on:
+  push:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "ledgdex @ git+https://github.com/matrixdex/ledgdex@main#subdirectory=py"
+      - uses: actions/cache/restore@v4
+        with:
+          path: .ledgdex-check
+          key: ledgdex-check-${{ github.run_id }}
+          restore-keys: ledgdex-check-
+      - run: ledgdex check seller/ledgdex.jsonl buyer/ledgdex.jsonl --json ledgdex-check.json
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .ledgdex-check
+          key: ledgdex-check-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ledgdex-check
+          path: |
+            ledgdex-check.json
+            .ledgdex-check/proofs/
+          if-no-files-found: ignore
